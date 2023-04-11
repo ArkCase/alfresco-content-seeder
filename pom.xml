@@ -5,7 +5,7 @@
 	<groupId>com.armedia.alfresco.extension</groupId>
 	<artifactId>alfresco-content-seeder</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0.4</version>
+	<version>1.0.0</version>
 	<name>Alfresco Content Seeding Engine</name>
 	<description>Content Seeding Engine for Alfresco v5.x+</description>
 

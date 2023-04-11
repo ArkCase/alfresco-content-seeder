@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
@@ -22,6 +23,7 @@ import java.util.function.BiConsumer;
 import org.alfresco.model.ContentModel;
 import org.alfresco.module.org_alfresco_module_rm.fileplan.FilePlanService;
 import org.alfresco.repo.admin.patch.AbstractPatch;
+import org.alfresco.repo.security.authentication.AuthenticationUtil;
 import org.alfresco.service.cmr.model.FileExistsException;
 import org.alfresco.service.cmr.model.FileFolderService;
 import org.alfresco.service.cmr.repository.NodeRef;
@@ -30,7 +32,6 @@ import org.alfresco.service.cmr.site.SiteService;
 import org.alfresco.service.namespace.NamespaceService;
 import org.alfresco.service.namespace.QName;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.text.StringSubstitutor;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,7 +59,7 @@ public class ContentSeeder extends AbstractPatch {
 
 	private final Logger log = Log.LOG;
 
-	private static String getSeedContentSource() {
+	protected static String getSeedContentSource() {
 		String v = null;
 
 		v = System.getProperty(ContentSeeder.SYSPROP);
@@ -71,7 +72,10 @@ public class ContentSeeder extends AbstractPatch {
 	}
 
 	// This date pattern matches the one from the Ansible installer: %Y-%m%d%H%M%S%N
-	private static final DateTimeFormatter RMA_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MMddHHmmssnnnnnnnnn");
+	private static final DateTimeFormatter RMA_DATE_FORMAT = DateTimeFormatter //
+		.ofPattern("yyyy-MMddHHmmssnnnnnnnnn") //
+		.withZone(ZoneId.of("UTC")) //
+	;
 
 	protected Map<QName, Serializable> createCategoryMetadata(String categoryName) {
 		Map<QName, Serializable> md = new HashMap<>();
@@ -85,7 +89,7 @@ public class ContentSeeder extends AbstractPatch {
 		return md;
 	}
 
-	public Pair<SiteInfo, NodeRef> create(SiteData data) throws Exception {
+	public SiteInfo create(SiteData data) throws Exception {
 
 		SiteInfo site = this.siteService.createSite(data.preset, data.name, data.title, data.description,
 			data.visibility, data.type);
@@ -112,7 +116,7 @@ public class ContentSeeder extends AbstractPatch {
 			}
 		}
 
-		return Pair.of(site, rootNode);
+		return site;
 	}
 
 	@Autowired(required = true)
@@ -126,18 +130,6 @@ public class ContentSeeder extends AbstractPatch {
 
 	@Autowired(required = true)
 	private FilePlanService filePlanService;
-
-	protected void createSite(Map<String, String> siteData) throws Exception {
-
-	}
-
-	protected void createContentFolder(SiteInfo site, String folderName) throws Exception {
-
-	}
-
-	protected void createRmCategory(SiteInfo site, String categoryName) throws Exception {
-
-	}
 
 	protected SeedData loadSeedContent(final String contentSource) throws Exception {
 		this.log.debug("Loading the seed content from [{}]", contentSource);
@@ -186,25 +178,33 @@ public class ContentSeeder extends AbstractPatch {
 		final String contentSource = StringSubstitutor.replaceSystemProperties(ContentSeeder.getSeedContentSource());
 		try {
 			SeedData seedData = loadSeedContent(contentSource);
+			this.log.info("Loaded the seeding data:{}{}", System.lineSeparator(), new Yaml().dump(seedData));
 
 			final SeedData.RmInfo rmInfo = seedData.getRecordsManagement();
 			final String rmSite = rmInfo.getSite();
 
-			final Map<String, SeedData.SiteDef> sites = seedData.getSites();
-			for (String siteName : sites.keySet()) {
-				final SeedData.SiteDef siteDef = sites.get(siteName);
-				final boolean rm = StringUtils.equals(rmSite, siteName);
+			AuthenticationUtil.runAsSystem(() -> {
+				final Map<String, SeedData.SiteDef> sites = seedData.getSites();
+				for (String siteName : sites.keySet()) {
+					final SeedData.SiteDef siteDef = sites.get(siteName);
+					final boolean rm = StringUtils.equals(rmSite, siteName);
 
-				// If RM is disabled, and this is the RM site, we skip it
-				if (rm && !rmInfo.isEnabled()) {
-					continue;
+					// If RM is disabled, and this is the RM site, we skip it
+					if (rm && !rmInfo.isEnabled()) {
+						continue;
+					}
+
+					SiteData siteData = new SiteData(siteName, siteDef, StringUtils.equals(rmSite, siteName),
+						this.namespaceService);
+					this.log.info("Seeding the site information for [{}] (rm={})", siteData.name, siteData.rm);
+					SiteInfo siteInfo = create(siteData);
+					if (this.log.isDebugEnabled()) {
+						this.log.debug("Successfully seeded the site information for [{}] (nodeRef={})",
+							siteInfo.getShortName(), siteInfo.getNodeRef());
+					}
 				}
-
-				SiteData siteData = new SiteData(siteName, siteDef, StringUtils.equals(rmSite, siteName),
-					this.namespaceService);
-				Pair<SiteInfo, NodeRef> result = create(siteData);
-				result.hashCode();
-			}
+				return null;
+			});
 
 			return "Seeded the initial content";
 		} catch (Exception e) {

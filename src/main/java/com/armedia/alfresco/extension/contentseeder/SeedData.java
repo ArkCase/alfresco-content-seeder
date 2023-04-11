@@ -10,10 +10,10 @@ public class SeedData {
 
 	public static class RmInfo {
 		protected static final String DEFAULT_RM_SITE = "rm";
-		protected static final Boolean DEFAULT_RM_ENABLED = Boolean.FALSE;
+		protected static final boolean DEFAULT_RM_ENABLED = false;
 
 		private String site = RmInfo.DEFAULT_RM_SITE;
-		private boolean enabled = RmInfo.DEFAULT_RM_ENABLED.booleanValue();
+		private boolean enabled = RmInfo.DEFAULT_RM_ENABLED;
 
 		public String getSite() {
 			return this.site;
@@ -27,8 +27,8 @@ public class SeedData {
 			return this.enabled;
 		}
 
-		public void setEnabled(Boolean enabled) {
-			this.enabled = ObjectUtils.defaultIfNull(enabled, RmInfo.DEFAULT_RM_ENABLED).booleanValue();
+		public void setEnabled(boolean enabled) {
+			this.enabled = enabled;
 		}
 	}
 
