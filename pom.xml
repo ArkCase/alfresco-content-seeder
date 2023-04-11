@@ -1,0 +1,445 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.armedia.alfresco.extension</groupId>
+	<artifactId>alfresco-content-seeder</artifactId>
+	<packaging>jar</packaging>
+	<version>1.0.4</version>
+	<name>Alfresco Content Seeding Engine</name>
+	<description>Content Seeding Engine for Alfresco v5.x+</description>
+
+	<properties>
+		<maven.min-version>3.2.2</maven.min-version>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.build.target>1.8</project.build.target>
+		<build.number>-SNAPSHOT-${scmBranch}-${buildNumber}</build.number>
+
+		<!-- Alfresco Maven Plugin version to use -->
+		<alfresco.sdk.version>4.0.0</alfresco.sdk.version>
+
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+		<!-- Properties used in dependency declarations, you don't need to change these -->
+		<alfresco.groupId>org.alfresco</alfresco.groupId>
+		<alfresco.bomDependencyArtifactId>acs-packaging</alfresco.bomDependencyArtifactId>
+		<alfresco.platform.version>6.1.0</alfresco.platform.version>
+		<!-- <alfresco.platform.version>6.1.2-ga</alfresco.platform.version> -->
+		<alfresco.share.version>6.1.0-RC3</alfresco.share.version>
+		<alfresco.rm.version>3.0.2</alfresco.rm.version>
+
+		<!-- Our manual dependencies -->
+		<utilities.version>1.3.3</utilities.version>
+		<jackson.version>2.9.5</jackson.version>
+		<junit.version>5.6.2</junit.version>
+		<easymock.version>4.2</easymock.version>
+
+		<!-- Docker images -->
+		<docker.acs.image>alfresco/alfresco-content-repository-community</docker.acs.image>
+		<docker.share.image>alfresco/alfresco-share</docker.share.image>
+
+		<!-- Environment configuration properties -->
+		<share.port>8180</share.port>
+		<acs.host>alfresco-content-seeder-acs</acs.host>
+		<acs.port>8080</acs.port>
+		<acs.debug.port>8888</acs.debug.port>
+		<postgres.port>5555</postgres.port>
+		<!-- This parameter is only required for those cases in which ACS is not exposed in http://localhost:8080/alfresco (i.e. Windows Docker) -->
+		<test.acs.endpoint.path></test.acs.endpoint.path>
+	</properties>
+
+	<developers>
+		<developer>
+			<id>drivera</id>
+			<name>Diego Rivera</name>
+			<email>diego.rivera@armedia.com</email>
+		</developer>
+	</developers>
+
+	<scm>
+		<connection>scm:git:git@gitlab.armedia.com:alfresco/alfresco-content-seeder.git</connection>
+	</scm>
+
+	<distributionManagement>
+		<repository>
+			<id>armedia-nexus</id>
+			<name>Armedia Nexus Repository</name>
+			<url>https://project.armedia.com/nexus/content/repositories/armedia.release/</url>
+		</repository>
+	</distributionManagement>
+
+	<issueManagement>
+		<system>gitlab</system>
+		<url>https://gitlab.armedia.com/alfresco/alfresco-content-seeder/issues</url>
+	</issueManagement>
+
+	<repositories>
+		<repository>
+			<id>Armedia Repository</id>
+			<name>Armedia Artifacts Repository</name>
+			<url>https://project.armedia.com/nexus/content/groups/armedia/</url>
+		</repository>
+		<repository>
+			<id>alfresco-private-repository</id>
+			<name>alfresco private repository</name>
+			<url>http://artifacts.alfresco.com/nexus/content/groups/private/</url>
+		</repository>
+		<repository>
+			<id>maven.alfresco.com</id>
+			<name>Alfresco Maven Repository</name>
+			<url>https://maven.alfresco.com/nexus/content/groups/private/</url>
+		</repository>
+	</repositories>
+
+	<pluginRepositories>
+		<pluginRepository>
+			<id>Armedia Repository</id>
+			<name>Armedia Artifacts Repository</name>
+			<url>https://project.armedia.com/nexus/content/groups/armedia/</url>
+		</pluginRepository>
+		<pluginRepository>
+			<id>alfresco-private-repository</id>
+			<name>alfresco private repository</name>
+			<url>http://artifacts.alfresco.com/nexus/content/groups/private/</url>
+		</pluginRepository>
+		<pluginRepository>
+			<id>maven.alfresco.com</id>
+			<name>Alfresco Maven Repository</name>
+			<url>https://maven.alfresco.com/nexus/content/groups/private/</url>
+		</pluginRepository>
+	</pluginRepositories>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- This will import the dependencyManagement for all artifacts in the selected Alfresco platform.
+				NOTE:	You still need to define dependencies in your POM, but you can omit version as
+						it's enforced by this dependencyManagement.
+				NOTE:	It defaults to the latest version this SDK pom has been tested with,
+						but alfresco version can/should be overridden in your project's pom
+			-->
+			<dependency>
+				<groupId>${alfresco.groupId}</groupId>
+				<artifactId>${alfresco.bomDependencyArtifactId}</artifactId>
+				<version>${alfresco.platform.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.armedia.commons</groupId>
+			<artifactId>utilities</artifactId>
+			<version>${utilities.version}</version>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-yaml</artifactId>
+			<version>${jackson.version}</version>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-jsr310</artifactId>
+			<version>${jackson.version}</version>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>${alfresco.groupId}</groupId>
+			<artifactId>alfresco-repository</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-context</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- The main Alfresco Repo dependency for compiling Java code in src/main/java -->
+		<dependency>
+			<groupId>${alfresco.groupId}</groupId>
+			<artifactId>alfresco-remote-api</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- The main Alfresco RM Repo dependency for compiling Java code in src/main/java -->
+		<dependency>
+			<groupId>${alfresco.groupId}</groupId>
+			<artifactId>alfresco-rm-community-repo</artifactId>
+			<version>${alfresco.rm.version}</version>
+			<classifier>classes</classifier>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Bring in Alfresco RAD so we get access to AlfrescoTestRunner classes -->
+		<dependency>
+			<groupId>org.alfresco.maven</groupId>
+			<artifactId>alfresco-rad</artifactId>
+			<version>${alfresco.sdk.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.easymock</groupId>
+			<artifactId>easymock</artifactId>
+			<version>${easymock.version}</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<finalName>${project.artifactId}-${project.version}</finalName>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.alfresco.maven.plugin</groupId>
+					<artifactId>alfresco-maven-plugin</artifactId>
+					<version>2.2.0</version>
+					<extensions>true</extensions>
+					<configuration>
+						<snapshotToTimestamp>true</snapshotToTimestamp>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-enforcer-plugin</artifactId>
+					<version>1.4.1</version>
+					<configuration>
+						<rules>
+							<requireMavenVersion>
+								<version>${maven.min-version}</version>
+							</requireMavenVersion>
+						</rules>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.codehaus.mojo</groupId>
+					<artifactId>buildnumber-maven-plugin</artifactId>
+					<version>1.4</version>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<version>3.8.1</version>
+					<configuration>
+						<encoding>${project.build.sourceEncoding}</encoding>
+						<source>${project.build.target}</source>
+						<target>${project.build.target}</target>
+						<compilerId>eclipse</compilerId>
+						<compilerArguments>
+							<properties>${project.basedir}/.settings/org.eclipse.jdt.core.prefs</properties>
+						</compilerArguments>
+						<showWarnings>true</showWarnings>
+						<showDeprecation>true</showDeprecation>
+					</configuration>
+					<dependencies>
+						<dependency>
+							<groupId>org.codehaus.plexus</groupId>
+							<artifactId>plexus-compiler-eclipse</artifactId>
+							<version>2.8.6</version>
+						</dependency>
+						<dependency>
+							<groupId>org.eclipse.jdt</groupId>
+							<artifactId>ecj</artifactId>
+							<version>3.21.0</version>
+						</dependency>
+					</dependencies>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>2.22.2</version>
+					<configuration>
+						<additionalClasspathElements>
+							<additionalClasspath>src/main/amp</additionalClasspath>
+						</additionalClasspathElements>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-resources-plugin</artifactId>
+					<version>3.1.0</version>
+					<configuration>
+						<encoding>UTF-8</encoding>
+						<nonFilteredFileExtensions> <!-- jpg, jpeg, gif, bmp and png are added automatically -->
+							<nonFilteredFileExtension>ftl</nonFilteredFileExtension>
+							<nonFilteredFileExtension>acp</nonFilteredFileExtension>
+							<nonFilteredFileExtension>svg</nonFilteredFileExtension>
+							<nonFilteredFileExtension>pdf</nonFilteredFileExtension>
+							<nonFilteredFileExtension>doc</nonFilteredFileExtension>
+							<nonFilteredFileExtension>docx</nonFilteredFileExtension>
+							<nonFilteredFileExtension>xls</nonFilteredFileExtension>
+							<nonFilteredFileExtension>xlsx</nonFilteredFileExtension>
+							<nonFilteredFileExtension>ppt</nonFilteredFileExtension>
+							<nonFilteredFileExtension>pptx</nonFilteredFileExtension>
+							<nonFilteredFileExtension>bin</nonFilteredFileExtension>
+							<nonFilteredFileExtension>lic</nonFilteredFileExtension>
+							<nonFilteredFileExtension>swf</nonFilteredFileExtension>
+							<nonFilteredFileExtension>zip</nonFilteredFileExtension>
+							<nonFilteredFileExtension>msg</nonFilteredFileExtension>
+							<nonFilteredFileExtension>jar</nonFilteredFileExtension>
+							<nonFilteredFileExtension>ttf</nonFilteredFileExtension>
+							<nonFilteredFileExtension>eot</nonFilteredFileExtension>
+							<nonFilteredFileExtension>woff</nonFilteredFileExtension>
+							<nonFilteredFileExtension>woff2</nonFilteredFileExtension>
+							<nonFilteredFileExtension>css</nonFilteredFileExtension>
+							<nonFilteredFileExtension>ico</nonFilteredFileExtension>
+							<nonFilteredFileExtension>psd</nonFilteredFileExtension>
+							<nonFilteredFileExtension>js</nonFilteredFileExtension>
+						</nonFilteredFileExtensions>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.shared</groupId>
+					<artifactId>maven-filtering</artifactId>
+					<version>3.1.1</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-assembly-plugin</artifactId>
+					<version>2.6</version>
+					<dependencies>
+						<dependency>
+							<groupId>org.alfresco.maven.plugin</groupId>
+							<artifactId>alfresco-maven-plugin</artifactId>
+							<version>${alfresco.sdk.version}</version>
+						</dependency>
+					</dependencies>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>enforce-versions</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>buildnumber-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>create-commitHash</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>create</goal>
+						</goals>
+						<configuration>
+							<doCheck>false</doCheck>
+							<doUpdate>false</doUpdate>
+							<shortRevisionLength>40</shortRevisionLength>
+							<getRevisionOnlyOnce>true</getRevisionOnlyOnce>
+							<revisionOnScmFailure>unknown</revisionOnScmFailure>
+							<buildNumberPropertyName>commitHash</buildNumberPropertyName>
+						</configuration>
+					</execution>
+					<execution>
+						<id>create-buildNumber</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>create</goal>
+						</goals>
+						<configuration>
+							<doCheck>false</doCheck>
+							<doUpdate>false</doUpdate>
+							<shortRevisionLength>8</shortRevisionLength>
+							<getRevisionOnlyOnce>true</getRevisionOnlyOnce>
+							<revisionOnScmFailure>unknown</revisionOnScmFailure>
+							<buildNumberPropertyName>buildNumber</buildNumberPropertyName>
+						</configuration>
+					</execution>
+					<execution>
+						<id>create-buildTimestamp</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>create-timestamp</goal>
+						</goals>
+						<configuration>
+							<timestampPropertyName>buildTimestamp</timestampPropertyName>
+							<timestampFormat>yyyy-MM-dd'T'HH:mm:ssZZ</timestampFormat>
+							<timezone>UTC</timezone>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>build-amp-file</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<finalName>${project.artifactId}-${project.version}${build.number}</finalName>
+							<appendAssemblyId>false</appendAssemblyId>
+							<descriptor>src/main/assembly/amp.xml</descriptor>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+	<profiles>
+		<profile>
+			<id>release</id>
+			<properties>
+				<build.number></build.number>
+			</properties>
+		</profile>
+		<profile>
+			<id>beta</id>
+			<properties>
+				<build.number>-beta-${betaNumber}</build.number>
+			</properties>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-enforcer-plugin</artifactId>
+						<configuration>
+							<rules>
+								<requireMavenVersion>
+									<version>${maven.min-version}</version>
+								</requireMavenVersion>
+								<requireProperty>
+									<property>betaNumber</property>
+									<message>Must provide a valid betaNumber property (-DbetaNumber=...) for this build</message>
+									<regex>^[0-9]+$</regex>
+									<regexMessage>The beta number [${betaNumber}] is not composed of all digits</regexMessage>
+								</requireProperty>
+							</rules>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+</project>

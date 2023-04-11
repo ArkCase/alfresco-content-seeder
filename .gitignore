@@ -1,0 +1,10 @@
+**/.DS_Store
+**/*.class
+**/*.jar
+**/*.war
+**/*.ear
+**/*.iml
+**/.idea/
+**/target/
+**/*.swp
+/alfresco.log

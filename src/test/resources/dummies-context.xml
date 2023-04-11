@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans   http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+
+	<bean name="policyComponent" class="com.armedia.alfresco.extension.mock.MockService">
+		<property name="mockedClass" value="org.alfresco.repo.policy.PolicyComponent" />
+	</bean>
+
+	<bean name="namespaceService" class="com.armedia.alfresco.extension.mock.DummyNamespaceService">
+	</bean>
+
+	<bean name="nodeService" class="com.armedia.alfresco.extension.mock.MockService">
+		<property name="mockedClass" value="org.alfresco.service.cmr.repository.NodeService" />
+	</bean>
+
+	<bean name="nodeArchiveService" class="com.armedia.alfresco.extension.mock.MockService">
+		<property name="mockedClass" value="org.alfresco.repo.node.archive.NodeArchiveService" />
+	</bean>
+
+	<bean name="transactionService" class="org.alfresco.repo.transaction.DummyTransactionService">
+	</bean>
+
+	<bean name="permissionService" class="com.armedia.alfresco.extension.mock.MockService">
+		<property name="mockedClass" value="org.alfresco.service.cmr.security.PermissionService" />
+	</bean>
+
+	<bean name="siteService" class="com.armedia.alfresco.extension.mock.MockService">
+		<property name="mockedClass" value="org.alfresco.service.cmr.site.SiteService" />
+	</bean>
+
+	<bean name="renditionService" class="com.armedia.alfresco.extension.mock.MockService">
+		<property name="mockedClass" value="org.alfresco.service.cmr.rendition.RenditionService" />
+	</bean>
+
+	<bean name="contentStore" class="com.armedia.alfresco.extension.mock.MockService">
+		<property name="mockedClass" value="org.alfresco.repo.content.ContentStore" />
+	</bean>
+
+	<bean name="fileFolderService" class="com.armedia.alfresco.extension.mock.MockService">
+		<property name="mockedClass" value="org.alfresco.service.cmr.model.FileFolderService" />
+	</bean>
+
+	<bean id="docLibNodeLocator" class="org.alfresco.repo.site.DocLibNodeLocator">
+	</bean>
+
+</beans>

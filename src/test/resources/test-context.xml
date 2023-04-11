@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans   http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+						http://www.springframework.org/schema/util    http://www.springframework.org/schema/util/spring-util-3.0.xsd">
+
+	<bean name="tempDir" class="java.lang.String" factory-method="valueOf">
+		<constructor-arg>
+			<util:constant static-field="com.armedia.alfresco.extension.TestCommon.TEMP_DIR" />
+		</constructor-arg>
+	</bean>
+
+	<import resource="classpath:dummies-context.xml" />
+
+	<bean id="docLibNodeLocator" class="org.alfresco.repo.site.DocLibNodeLocator">
+	</bean>
+	
+	<bean name="armediaDuplicateDetectorDictionaryBootstrap" class="java.lang.String" factory-method="valueOf">
+		<constructor-arg>
+			<value>armediaDedupHashingDictionaryBootstrap</value>
+		</constructor-arg>
+	</bean>
+	
+	<bean id="webscript" abstract="true"/>
+	<bean id="baseJavaScriptExtension" abstract="true"/>
+
+	<!-- Import application contexts from dedicated sub-directory. -->
+	<import
+		resource="classpath:config/alfresco/module/com.armedia.alfresco.extension.armedia-duplicate-detector/context/*-context.xml" />
+
+</beans>
