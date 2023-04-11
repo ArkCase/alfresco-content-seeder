@@ -1,11 +1,11 @@
 package com.armedia.alfresco.extension.contentseeder;
 
+import java.net.URL;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.support.GenericXmlApplicationContext;
-
-import com.armedia.alfresco.extension.contentseeder.ContentSeeder;
 
 class ContentSeederTest {
 
@@ -18,8 +18,9 @@ class ContentSeederTest {
 
 	@Test
 	void testApplyInternal() throws Exception {
-		ContentSeeder patch = new ContentSeeder();
-
+		URL url = Thread.currentThread().getContextClassLoader().getResource("armedia-seed-content.yaml");
+		System.setProperty("armedia.seed.content", url.toExternalForm());
+		ContentSeeder patch = ContentSeederTest.CONTEXT.getBean(ContentSeeder.class);
 		patch.applyInternal();
 	}
 

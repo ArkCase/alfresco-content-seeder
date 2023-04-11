@@ -14,18 +14,9 @@
 
 	<bean id="docLibNodeLocator" class="org.alfresco.repo.site.DocLibNodeLocator">
 	</bean>
-	
-	<bean name="armediaDuplicateDetectorDictionaryBootstrap" class="java.lang.String" factory-method="valueOf">
-		<constructor-arg>
-			<value>armediaDedupHashingDictionaryBootstrap</value>
-		</constructor-arg>
-	</bean>
-	
-	<bean id="webscript" abstract="true"/>
-	<bean id="baseJavaScriptExtension" abstract="true"/>
 
 	<!-- Import application contexts from dedicated sub-directory. -->
 	<import
-		resource="classpath:config/alfresco/module/com.armedia.alfresco.extension.armedia-duplicate-detector/context/*-context.xml" />
+		resource="classpath:content-seeder-test-context.xml" />
 
 </beans>
