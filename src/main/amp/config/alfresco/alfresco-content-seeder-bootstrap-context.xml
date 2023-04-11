@@ -5,6 +5,9 @@
     <bean id="patch.armediaContentSeeder" class="com.armedia.alfresco.extension.contentseeder.ContentSeeder" parent="basePatch">
 		<property name="id" value="com.armedia.alfresco.extension.patch.contentSeeder"/>
 		<property name="description" value="com.armedia.alfresco.extension.patch.contentSeeder.description"/>
+		<property name="fixesFromSchema" value="0"/>
+		<property name="fixesToSchema" value="1"/>
+		<property name="targetSchema" value="2"/>
     </bean>
 
 </beans>

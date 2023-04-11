@@ -91,8 +91,15 @@ public class ContentSeeder extends AbstractPatch {
 
 	public SiteInfo create(SiteData data) throws Exception {
 
-		SiteInfo site = this.siteService.createSite(data.preset, data.name, data.title, data.description,
-			data.visibility, data.type);
+		SiteInfo site = this.siteService.getSite(data.name);
+		if (site == null) {
+			this.log.info("Site [{}] does not exist - it will be created (rm={})", data.name, data.rm);
+			site = this.siteService.createSite(data.preset, data.name, data.title, data.description, data.visibility,
+				data.type);
+		} else {
+			this.log.info("Site [{}] already exists, will use the existing site (nodeRef={})", data.name,
+				site.getNodeRef());
+		}
 
 		NodeRef rootNode = this.siteService.getContainer(site.getShortName(), SiteService.DOCUMENT_LIBRARY);
 		if (data.rm) {
@@ -184,26 +191,28 @@ public class ContentSeeder extends AbstractPatch {
 			final String rmSite = rmInfo.getSite();
 
 			AuthenticationUtil.runAsSystem(() -> {
-				final Map<String, SeedData.SiteDef> sites = seedData.getSites();
-				for (String siteName : sites.keySet()) {
-					final SeedData.SiteDef siteDef = sites.get(siteName);
-					final boolean rm = StringUtils.equals(rmSite, siteName);
+				return super.transactionHelper.doInTransaction(() -> {
+					final Map<String, SeedData.SiteDef> sites = seedData.getSites();
+					for (String siteName : sites.keySet()) {
+						final SeedData.SiteDef siteDef = sites.get(siteName);
+						final boolean rm = StringUtils.equals(rmSite, siteName);
 
-					// If RM is disabled, and this is the RM site, we skip it
-					if (rm && !rmInfo.isEnabled()) {
-						continue;
-					}
+						// If RM is disabled, and this is the RM site, we skip it
+						if (rm && !rmInfo.isEnabled()) {
+							continue;
+						}
 
-					SiteData siteData = new SiteData(siteName, siteDef, StringUtils.equals(rmSite, siteName),
-						this.namespaceService);
-					this.log.info("Seeding the site information for [{}] (rm={})", siteData.name, siteData.rm);
-					SiteInfo siteInfo = create(siteData);
-					if (this.log.isDebugEnabled()) {
-						this.log.debug("Successfully seeded the site information for [{}] (nodeRef={})",
-							siteInfo.getShortName(), siteInfo.getNodeRef());
+						SiteData siteData = new SiteData(siteName, siteDef, StringUtils.equals(rmSite, siteName),
+							this.namespaceService);
+						this.log.info("Seeding the site information for [{}] (rm={})", siteData.name, siteData.rm);
+						SiteInfo siteInfo = create(siteData);
+						if (this.log.isDebugEnabled()) {
+							this.log.debug("Successfully seeded the site information for [{}] (nodeRef={})",
+								siteInfo.getShortName(), siteInfo.getNodeRef());
+						}
 					}
-				}
-				return null;
+					return null;
+				});
 			});
 
 			return "Seeded the initial content";
