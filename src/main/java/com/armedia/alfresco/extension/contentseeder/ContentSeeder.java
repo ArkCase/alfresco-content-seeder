@@ -19,8 +19,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-import javax.annotation.PostConstruct;
-
 import org.alfresco.model.ContentModel;
 import org.alfresco.module.org_alfresco_module_rm.fileplan.FilePlanService;
 import org.alfresco.repo.admin.patch.AbstractPatch;
@@ -38,9 +36,7 @@ import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import org.yaml.snakeyaml.Yaml;
 
 @Component
 @Lazy
@@ -119,23 +115,17 @@ public class ContentSeeder extends AbstractPatch {
 		return Pair.of(site, rootNode);
 	}
 
-	@Autowired
+	@Autowired(required = true)
 	private SiteService siteService;
 
-	@Autowired
+	@Autowired(required = true)
 	private FileFolderService fileFolderService;
 
-	@Autowired
+	@Autowired(required = true)
 	private NamespaceService namespaceService;
 
-	@Autowired
+	@Autowired(required = true)
 	private FilePlanService filePlanService;
-
-	@PostConstruct
-	protected void postConstruct() {
-		this.siteService.hashCode();
-		"".hashCode();
-	}
 
 	protected void createSite(Map<String, String> siteData) throws Exception {
 
@@ -182,11 +172,10 @@ public class ContentSeeder extends AbstractPatch {
 	}
 
 	protected SeedData loadSeedContent(final Reader r) throws Exception {
-		ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-		mapper.findAndRegisterModules();
-		SeedData seedData = mapper.readValue(r, SeedData.class);
+		Yaml yaml = new Yaml();
+		SeedData seedData = yaml.loadAs(r, SeedData.class);
 		if (this.log.isTraceEnabled()) {
-			this.log.trace("Seed content loaded:{}{}", System.lineSeparator(), mapper.writeValueAsString(seedData));
+			this.log.trace("Seed content loaded:{}{}", System.lineSeparator(), yaml.dump(seedData));
 		}
 		return seedData;
 	}
@@ -198,9 +187,24 @@ public class ContentSeeder extends AbstractPatch {
 		try {
 			SeedData seedData = loadSeedContent(contentSource);
 
-			// First things first: make sure the RM config is consistent (if enabled, the site is
-			// properly specified)
-			RmInfo recordsManagement = seedData.getRecordsManagement();
+			final SeedData.RmInfo rmInfo = seedData.getRecordsManagement();
+			final String rmSite = rmInfo.getSite();
+
+			final Map<String, SeedData.SiteDef> sites = seedData.getSites();
+			for (String siteName : sites.keySet()) {
+				final SeedData.SiteDef siteDef = sites.get(siteName);
+				final boolean rm = StringUtils.equals(rmSite, siteName);
+
+				// If RM is disabled, and this is the RM site, we skip it
+				if (rm && !rmInfo.isEnabled()) {
+					continue;
+				}
+
+				SiteData siteData = new SiteData(siteName, siteDef, StringUtils.equals(rmSite, siteName),
+					this.namespaceService);
+				Pair<SiteInfo, NodeRef> result = create(siteData);
+				result.hashCode();
+			}
 
 			return "Seeded the initial content";
 		} catch (Exception e) {

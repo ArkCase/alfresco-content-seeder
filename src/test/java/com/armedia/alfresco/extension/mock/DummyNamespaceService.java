@@ -8,6 +8,7 @@ import org.alfresco.service.namespace.NamespaceServiceMemoryImpl;
 public class DummyNamespaceService extends NamespaceServiceMemoryImpl {
 
 	public DummyNamespaceService() {
+		"".hashCode();
 	}
 
 	@Override
