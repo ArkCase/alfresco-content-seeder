@@ -64,6 +64,7 @@ class ContentSeederTest {
 
 			SiteData siteData = new SiteData(siteName, siteDef, StringUtils.equals(rmSite, siteName), nss);
 
+			EasyMock.expect(ss.getSite(siteData.name)).andReturn(null).once();
 			EasyMock.expect(ss.createSite(siteData.preset, siteData.name, siteData.title, siteData.description,
 				siteData.visibility, siteData.type)).andReturn(si).once();
 			EasyMock.expect(si.getShortName()).andReturn(siteData.name).once();

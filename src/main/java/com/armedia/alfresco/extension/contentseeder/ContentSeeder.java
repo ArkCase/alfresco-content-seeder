@@ -31,6 +31,7 @@ import org.alfresco.service.cmr.site.SiteInfo;
 import org.alfresco.service.cmr.site.SiteService;
 import org.alfresco.service.namespace.NamespaceService;
 import org.alfresco.service.namespace.QName;
+import org.alfresco.service.transaction.TransactionService;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringSubstitutor;
 import org.slf4j.Logger;
@@ -136,6 +137,9 @@ public class ContentSeeder extends AbstractPatch {
 	private NamespaceService namespaceService;
 
 	@Autowired(required = true)
+	private TransactionService tx;
+
+	@Autowired(required = true)
 	private FilePlanService filePlanService;
 
 	protected SeedData loadSeedContent(final String contentSource) throws Exception {
@@ -191,7 +195,7 @@ public class ContentSeeder extends AbstractPatch {
 			final String rmSite = rmInfo.getSite();
 
 			AuthenticationUtil.runAsSystem(() -> {
-				return super.transactionHelper.doInTransaction(() -> {
+				return this.tx.getRetryingTransactionHelper().doInTransaction(() -> {
 					final Map<String, SeedData.SiteDef> sites = seedData.getSites();
 					for (String siteName : sites.keySet()) {
 						final SeedData.SiteDef siteDef = sites.get(siteName);
