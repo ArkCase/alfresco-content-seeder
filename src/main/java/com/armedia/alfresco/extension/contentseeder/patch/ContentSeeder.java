@@ -118,8 +118,8 @@ public class ContentSeeder extends AbstractPatch {
 		SiteInfo site = this.siteService.getSite(data.name);
 		if (site == null) {
 			this.log.info("Site [{}] does not exist - it will be created (rm={})", data.name, data.rm);
-			site = this.siteService.createSite(data.preset, data.name, data.title, data.description, data.visibility,
-				data.type);
+			site = this.authenticationWrapper.runAsAdministrator(() -> this.siteService.createSite(data.preset,
+				data.name, data.title, data.description, data.visibility, data.type));
 		} else {
 			this.log.info("Site [{}] already exists, will use the existing site (nodeRef={})", data.name,
 				site.getNodeRef());
@@ -165,13 +165,13 @@ public class ContentSeeder extends AbstractPatch {
 	@Autowired(required = true)
 	private FilePlanService filePlanService;
 
-	private AuthenticationWrapper<String> authenticationWrapper = new DefaultAuthenticationWrapper<>();
+	private AuthenticationWrapper<SiteInfo> authenticationWrapper = new DefaultAuthenticationWrapper<>();
 
-	protected AuthenticationWrapper<String> getAuthenticationWrapper() {
+	protected AuthenticationWrapper<SiteInfo> getAuthenticationWrapper() {
 		return this.authenticationWrapper;
 	}
 
-	protected void setAuthenticationWrapper(AuthenticationWrapper<String> wrapper) {
+	protected void setAuthenticationWrapper(AuthenticationWrapper<SiteInfo> wrapper) {
 		this.authenticationWrapper = (wrapper != null ? wrapper : new DefaultAuthenticationWrapper<>());
 	}
 
@@ -240,28 +240,25 @@ public class ContentSeeder extends AbstractPatch {
 			final SeedData.RmInfo rmInfo = seedData.getRecordsManagement();
 			final String rmSite = rmInfo.getSite();
 
-			this.authenticationWrapper.runAsAdministrator(() -> {
-				final Map<String, SeedData.SiteDef> sites = seedData.getSites();
-				for (String siteName : sites.keySet()) {
-					final SeedData.SiteDef siteDef = sites.get(siteName);
-					final boolean rm = StringUtils.equals(rmSite, siteName);
+			final Map<String, SeedData.SiteDef> sites = seedData.getSites();
+			for (String siteName : sites.keySet()) {
+				final SeedData.SiteDef siteDef = sites.get(siteName);
+				final boolean rm = StringUtils.equals(rmSite, siteName);
 
-					// If RM is disabled, and this is the RM site, we skip it
-					if (rm && !rmInfo.isEnabled()) {
-						continue;
-					}
-
-					SiteData siteData = new SiteData(siteName, siteDef, StringUtils.equals(rmSite, siteName),
-						this.namespaceService);
-					this.log.info("Seeding the site information for [{}] (rm={})", siteData.name, siteData.rm);
-					SiteInfo siteInfo = create(siteData);
-					if (this.log.isDebugEnabled()) {
-						this.log.debug("Successfully seeded the site information for [{}] (nodeRef={})",
-							siteInfo.getShortName(), siteInfo.getNodeRef());
-					}
+				// If RM is disabled, and this is the RM site, we skip it
+				if (rm && !rmInfo.isEnabled()) {
+					continue;
 				}
-				return null;
-			});
+
+				SiteData siteData = new SiteData(siteName, siteDef, StringUtils.equals(rmSite, siteName),
+					this.namespaceService);
+				this.log.info("Seeding the site information for [{}] (rm={})", siteData.name, siteData.rm);
+				SiteInfo siteInfo = create(siteData);
+				if (this.log.isDebugEnabled()) {
+					this.log.debug("Successfully seeded the site information for [{}] (nodeRef={})",
+						siteInfo.getShortName(), siteInfo.getNodeRef());
+				}
+			}
 			return I18NUtil.getMessage(ContentSeeder.MSG_SUCCESS);
 		} catch (Exception e) {
 			throw new Exception(String.format("Failed to seed the initial content: %s", e.getMessage()), e);
