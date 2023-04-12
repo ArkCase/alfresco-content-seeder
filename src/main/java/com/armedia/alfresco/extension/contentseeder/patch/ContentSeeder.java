@@ -23,6 +23,7 @@ import java.util.function.BiConsumer;
 import org.alfresco.model.ContentModel;
 import org.alfresco.module.org_alfresco_module_rm.fileplan.FilePlanService;
 import org.alfresco.repo.admin.patch.AbstractPatch;
+import org.alfresco.repo.security.authentication.AuthenticationUtil;
 import org.alfresco.service.cmr.model.FileExistsException;
 import org.alfresco.service.cmr.model.FileFolderService;
 import org.alfresco.service.cmr.repository.NodeRef;
@@ -42,6 +43,7 @@ import org.yaml.snakeyaml.Yaml;
 import com.armedia.alfresco.extension.contentseeder.Log;
 import com.armedia.alfresco.extension.contentseeder.SeedData;
 import com.armedia.alfresco.extension.contentseeder.SiteData;
+import com.armedia.alfresco.extension.contentseeder.patch.AuthenticationWrapper.CheckedRunnable;
 
 @Component
 @Lazy
@@ -63,6 +65,21 @@ public class ContentSeeder extends AbstractPatch {
 
 	private static final String PATCH_ID = "com.armedia.alfresco.extension.patch.contentSeeder";
 	private static final String MSG_SUCCESS = ContentSeeder.PATCH_ID + ".success";
+
+	private static class DefaultAuthenticationWrapper<T> implements AuthenticationWrapper<T> {
+
+		@Override
+		public T runAsAdministrator(CheckedRunnable<T> task) throws Exception {
+			AuthenticationUtil.pushAuthentication();
+			try {
+				AuthenticationUtil.setFullyAuthenticatedUser(AuthenticationUtil.getAdminUserName());
+				return task.run();
+			} finally {
+				AuthenticationUtil.popAuthentication();
+			}
+		}
+
+	}
 
 	private final Logger log = Log.LOG;
 
@@ -145,6 +162,16 @@ public class ContentSeeder extends AbstractPatch {
 	@Autowired(required = true)
 	private FilePlanService filePlanService;
 
+	private AuthenticationWrapper<String> authenticationWrapper = new DefaultAuthenticationWrapper<>();
+
+	protected AuthenticationWrapper<String> getAuthenticationWrapper() {
+		return this.authenticationWrapper;
+	}
+
+	protected void setAuthenticationWrapper(AuthenticationWrapper<String> wrapper) {
+		this.authenticationWrapper = (wrapper != null ? wrapper : new DefaultAuthenticationWrapper<>());
+	}
+
 	protected SeedData loadSeedContent(final String contentSource) throws Exception {
 		this.log.debug("Loading the seed content from [{}]", contentSource);
 
@@ -186,6 +213,18 @@ public class ContentSeeder extends AbstractPatch {
 		return seedData;
 	}
 
+	// TODO: figure out how to disable this for unit tests, b/c AuthenticationUtil won't
+	// be initialized and thus will break everything
+	protected <T> T runAsAdministrator(CheckedRunnable<T> task) throws Exception {
+		AuthenticationUtil.pushAuthentication();
+		try {
+			AuthenticationUtil.setFullyAuthenticatedUser(AuthenticationUtil.getAdminUserName());
+			return task.run();
+		} finally {
+			AuthenticationUtil.popAuthentication();
+		}
+	}
+
 	@Override
 	protected String applyInternal() throws Exception {
 		this.log.info("Starting execution of patch: {}", I18NUtil.getMessage(ContentSeeder.PATCH_ID));
@@ -197,26 +236,28 @@ public class ContentSeeder extends AbstractPatch {
 			final SeedData.RmInfo rmInfo = seedData.getRecordsManagement();
 			final String rmSite = rmInfo.getSite();
 
-			final Map<String, SeedData.SiteDef> sites = seedData.getSites();
-			for (String siteName : sites.keySet()) {
-				final SeedData.SiteDef siteDef = sites.get(siteName);
-				final boolean rm = StringUtils.equals(rmSite, siteName);
+			this.authenticationWrapper.runAsAdministrator(() -> {
+				final Map<String, SeedData.SiteDef> sites = seedData.getSites();
+				for (String siteName : sites.keySet()) {
+					final SeedData.SiteDef siteDef = sites.get(siteName);
+					final boolean rm = StringUtils.equals(rmSite, siteName);
 
-				// If RM is disabled, and this is the RM site, we skip it
-				if (rm && !rmInfo.isEnabled()) {
-					continue;
+					// If RM is disabled, and this is the RM site, we skip it
+					if (rm && !rmInfo.isEnabled()) {
+						continue;
+					}
+
+					SiteData siteData = new SiteData(siteName, siteDef, StringUtils.equals(rmSite, siteName),
+						this.namespaceService);
+					this.log.info("Seeding the site information for [{}] (rm={})", siteData.name, siteData.rm);
+					SiteInfo siteInfo = create(siteData);
+					if (this.log.isDebugEnabled()) {
+						this.log.debug("Successfully seeded the site information for [{}] (nodeRef={})",
+							siteInfo.getShortName(), siteInfo.getNodeRef());
+					}
 				}
-
-				SiteData siteData = new SiteData(siteName, siteDef, StringUtils.equals(rmSite, siteName),
-					this.namespaceService);
-				this.log.info("Seeding the site information for [{}] (rm={})", siteData.name, siteData.rm);
-				SiteInfo siteInfo = create(siteData);
-				if (this.log.isDebugEnabled()) {
-					this.log.debug("Successfully seeded the site information for [{}] (nodeRef={})",
-						siteInfo.getShortName(), siteInfo.getNodeRef());
-				}
-			}
-
+				return null;
+			});
 			return I18NUtil.getMessage(ContentSeeder.MSG_SUCCESS);
 		} catch (Exception e) {
 			throw new Exception(String.format("Failed to seed the initial content: %s", e.getMessage()), e);

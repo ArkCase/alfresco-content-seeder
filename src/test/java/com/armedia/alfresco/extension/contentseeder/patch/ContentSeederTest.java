@@ -40,6 +40,9 @@ class ContentSeederTest {
 		URL url = Thread.currentThread().getContextClassLoader().getResource("armedia-seed-content.yaml");
 		System.setProperty("armedia.seed.content", url.toExternalForm());
 		ContentSeeder patch = ContentSeederTest.CONTEXT.getBean(ContentSeeder.class);
+		patch.setAuthenticationWrapper((t) -> {
+			return t.run();
+		});
 
 		FilePlanService fps = ContentSeederTest.CONTEXT.getBean(FilePlanService.class);
 		FileFolderService ffs = ContentSeederTest.CONTEXT.getBean(FileFolderService.class);
