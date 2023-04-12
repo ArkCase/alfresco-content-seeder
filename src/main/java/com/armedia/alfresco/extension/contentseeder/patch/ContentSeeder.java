@@ -63,7 +63,7 @@ public class ContentSeeder extends AbstractPatch {
 	private static final String SYSPROP = "armedia.seed.content";
 	private static final String DEFAULT = "${user.dir}/armedia-seed-content.yaml";
 
-	private static final String PATCH_ID = "com.armedia.alfresco.extension.patch.contentSeeder";
+	private static final String PATCH_ID = "patch.armedia.contentSeeder";
 	private static final String MSG_SUCCESS = ContentSeeder.PATCH_ID + ".success";
 
 	private static class DefaultAuthenticationWrapper<T> implements AuthenticationWrapper<T> {
@@ -126,6 +126,9 @@ public class ContentSeeder extends AbstractPatch {
 		}
 
 		NodeRef rootNode = this.siteService.getContainer(site.getShortName(), SiteService.DOCUMENT_LIBRARY);
+		if (rootNode == null) {
+			rootNode = this.siteService.createContainer(site.getShortName(), SiteService.DOCUMENT_LIBRARY, null, null);
+		}
 		if (data.rm) {
 			rootNode = this.filePlanService.createRecordCategory(rootNode, data.root,
 				createCategoryMetadata(data.root));
@@ -227,6 +230,7 @@ public class ContentSeeder extends AbstractPatch {
 
 	@Override
 	protected String applyInternal() throws Exception {
+
 		this.log.info("Starting execution of patch: {}", I18NUtil.getMessage(ContentSeeder.PATCH_ID));
 		final String contentSource = StringSubstitutor.replaceSystemProperties(ContentSeeder.getSeedContentSource());
 		try {
