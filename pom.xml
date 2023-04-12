@@ -391,15 +391,27 @@
 				<artifactId>maven-assembly-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>build-amp-file</id>
+						<id>build-amp-file-6.2</id>
 						<phase>package</phase>
 						<goals>
 							<goal>single</goal>
 						</goals>
 						<configuration>
-							<finalName>${project.artifactId}-${project.version}${build.number}</finalName>
+							<finalName>${project.artifactId}-${project.version}${build.number}-alf-6.2</finalName>
 							<appendAssemblyId>false</appendAssemblyId>
-							<descriptor>src/main/assembly/amp.xml</descriptor>
+							<descriptor>src/main/assembly/amp-6.2.xml</descriptor>
+						</configuration>
+					</execution>
+					<execution>
+						<id>build-amp-file-7</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<finalName>${project.artifactId}-${project.version}${build.number}-alf-7</finalName>
+							<appendAssemblyId>false</appendAssemblyId>
+							<descriptor>src/main/assembly/amp-7.0.xml</descriptor>
 						</configuration>
 					</execution>
 				</executions>
