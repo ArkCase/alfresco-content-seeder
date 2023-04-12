@@ -66,10 +66,10 @@ public class ContentSeeder extends AbstractPatch {
 	private static final String PATCH_ID = "patch.armedia.contentSeeder";
 	private static final String MSG_SUCCESS = ContentSeeder.PATCH_ID + ".success";
 
-	private static class DefaultAuthenticationWrapper<T> implements AuthenticationWrapper<T> {
+	private static class DefaultAuthenticationWrapper implements AuthenticationWrapper {
 
 		@Override
-		public T runAsAdministrator(CheckedRunnable<T> task) throws Exception {
+		public <T> T runAsAdministrator(CheckedRunnable<T> task) throws Exception {
 			AuthenticationUtil.pushAuthentication();
 			try {
 				AuthenticationUtil.setFullyAuthenticatedUser(AuthenticationUtil.getAdminUserName());
@@ -118,8 +118,8 @@ public class ContentSeeder extends AbstractPatch {
 		SiteInfo site = this.siteService.getSite(data.name);
 		if (site == null) {
 			this.log.info("Site [{}] does not exist - it will be created (rm={})", data.name, data.rm);
-			site = this.authenticationWrapper.runAsAdministrator(() -> this.siteService.createSite(data.preset,
-				data.name, data.title, data.description, data.visibility, data.type));
+			site = this.siteService.createSite(data.preset, data.name, data.title, data.description, data.visibility,
+				data.type);
 		} else {
 			this.log.info("Site [{}] already exists, will use the existing site (nodeRef={})", data.name,
 				site.getNodeRef());
@@ -165,14 +165,14 @@ public class ContentSeeder extends AbstractPatch {
 	@Autowired(required = true)
 	private FilePlanService filePlanService;
 
-	private AuthenticationWrapper<SiteInfo> authenticationWrapper = new DefaultAuthenticationWrapper<>();
+	private AuthenticationWrapper authenticationWrapper = new DefaultAuthenticationWrapper();
 
-	protected AuthenticationWrapper<SiteInfo> getAuthenticationWrapper() {
+	protected AuthenticationWrapper getAuthenticationWrapper() {
 		return this.authenticationWrapper;
 	}
 
-	protected void setAuthenticationWrapper(AuthenticationWrapper<SiteInfo> wrapper) {
-		this.authenticationWrapper = (wrapper != null ? wrapper : new DefaultAuthenticationWrapper<>());
+	protected void setAuthenticationWrapper(AuthenticationWrapper wrapper) {
+		this.authenticationWrapper = (wrapper != null ? wrapper : new DefaultAuthenticationWrapper());
 	}
 
 	protected SeedData loadSeedContent(final String contentSource) throws Exception {
@@ -228,10 +228,7 @@ public class ContentSeeder extends AbstractPatch {
 		}
 	}
 
-	@Override
-	protected String applyInternal() throws Exception {
-
-		this.log.info("Starting execution of patch: {}", I18NUtil.getMessage(ContentSeeder.PATCH_ID));
+	protected Void applyInternalImpl() throws Exception {
 		final String contentSource = StringSubstitutor.replaceSystemProperties(ContentSeeder.getSeedContentSource());
 		try {
 			SeedData seedData = loadSeedContent(contentSource);
@@ -259,6 +256,17 @@ public class ContentSeeder extends AbstractPatch {
 						siteInfo.getShortName(), siteInfo.getNodeRef());
 				}
 			}
+			return null;
+		} catch (Exception e) {
+			throw new Exception(String.format("Failed to seed the initial content: %s", e.getMessage()), e);
+		}
+	}
+
+	@Override
+	protected String applyInternal() throws Exception {
+		this.log.info("Starting execution of patch: {}", I18NUtil.getMessage(ContentSeeder.PATCH_ID));
+		try {
+			this.authenticationWrapper.runAsAdministrator(this::applyInternalImpl);
 			return I18NUtil.getMessage(ContentSeeder.MSG_SUCCESS);
 		} catch (Exception e) {
 			throw new Exception(String.format("Failed to seed the initial content: %s", e.getMessage()), e);

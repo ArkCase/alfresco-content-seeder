@@ -30,6 +30,13 @@ class ContentSeederTest {
 
 	protected static GenericXmlApplicationContext CONTEXT = null;
 
+	private static final AuthenticationWrapper VOID_AUTH_WRAPPER = new AuthenticationWrapper() {
+		@Override
+		public <T> T runAsAdministrator(CheckedRunnable<T> task) throws Exception {
+			return task.run();
+		}
+	};
+
 	@BeforeAll
 	static void beforeAll() {
 		ContentSeederTest.CONTEXT = new GenericXmlApplicationContext("classpath:test-context.xml");
@@ -40,9 +47,7 @@ class ContentSeederTest {
 		URL url = Thread.currentThread().getContextClassLoader().getResource("armedia-seed-content.yaml");
 		System.setProperty("armedia.seed.content", url.toExternalForm());
 		ContentSeeder patch = ContentSeederTest.CONTEXT.getBean(ContentSeeder.class);
-		patch.setAuthenticationWrapper((t) -> {
-			return t.run();
-		});
+		patch.setAuthenticationWrapper(ContentSeederTest.VOID_AUTH_WRAPPER);
 
 		FilePlanService fps = ContentSeederTest.CONTEXT.getBean(FilePlanService.class);
 		FileFolderService ffs = ContentSeederTest.CONTEXT.getBean(FileFolderService.class);
