@@ -1,4 +1,4 @@
-package com.armedia.alfresco.extension.contentseeder;
+package com.armedia.alfresco.extension.contentseeder.patch;
 
 import java.io.Serializable;
 import java.net.URL;
@@ -22,6 +22,9 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.support.GenericXmlApplicationContext;
+
+import com.armedia.alfresco.extension.contentseeder.SeedData;
+import com.armedia.alfresco.extension.contentseeder.SiteData;
 
 class ContentSeederTest {
 

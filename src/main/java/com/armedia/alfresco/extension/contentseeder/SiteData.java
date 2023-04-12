@@ -25,17 +25,17 @@ public class SiteData implements Serializable {
 
 	private static final SiteVisibility DEFAULT_VISIBILITY = SiteVisibility.PUBLIC;
 
-	protected final QName compliance;
-	protected final QName type;
-	protected final SiteVisibility visibility;
-	protected final String description;
-	protected final String name;
-	protected final String preset;
-	protected final String root;
-	protected final String title;
-	protected final boolean rm;
+	public final QName compliance;
+	public final QName type;
+	public final SiteVisibility visibility;
+	public final String description;
+	public final String name;
+	public final String preset;
+	public final String root;
+	public final String title;
+	public final boolean rm;
 
-	protected final Map<String, Object> contents;
+	public final Map<String, Object> contents;
 
 	public SiteData(String name, SeedData.SiteDef seed, boolean rm, NamespacePrefixResolver nspr) {
 		this.rm = rm;
