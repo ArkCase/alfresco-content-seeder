@@ -216,6 +216,8 @@ public class ContentSeeder extends AbstractPatch {
 	}
 
 	public SiteInfo createRMSite(SiteData data) throws Exception {
+		// Disable this for now ...
+		if (data.rm) { return null; }
 		SiteInfo site = this.siteService.getSite(data.name);
 		if (site == null) {
 			this.log.info("Site [{}] does not exist - it will be created (rm={})", data.name, data.rm);
@@ -264,11 +266,6 @@ public class ContentSeeder extends AbstractPatch {
 
 					// If RM is disabled, and this is the RM site, we skip it
 					if (rm && !rmInfo.isEnabled()) {
-						continue;
-					}
-
-					// Don't do RM for now ... until we figure it out
-					if (rm) {
 						continue;
 					}
 
