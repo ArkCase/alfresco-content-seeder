@@ -75,12 +75,12 @@
 				<exclude>javax.xml.bind:jaxb-api</exclude>
 				<exclude>org.apache.commons:commons-lang3</exclude>
 				<exclude>org.slf4j:slf4j-api</exclude>
-				<!-- Temporarily keep these for Alfresco 6 testing -->
-				<!--
-				<exclude>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml</exclude>
 				<exclude>com.fasterxml.jackson.core:jackson-core</exclude>
 				<exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
 				<exclude>com.fasterxml.jackson.core:jackson-databind</exclude>
+				<!-- Temporarily keep these for Alfresco 6.2.0 testing -->
+				<!--
+				<exclude>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml</exclude>
 				<exclude>org.yaml:snakeyaml</exclude>
 				-->
 			</excludes>
