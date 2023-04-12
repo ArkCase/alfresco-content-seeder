@@ -6,8 +6,8 @@
 		<property name="id" value="com.armedia.alfresco.extension.patch.contentSeeder"/>
 		<property name="description" value="com.armedia.alfresco.extension.patch.contentSeeder.description"/>
 		<property name="fixesFromSchema" value="0"/>
-		<property name="fixesToSchema" value="2"/>
-		<property name="targetSchema" value="10000"/>
+		<property name="fixesToSchema"><value>${version.schema}</value></property>
+		<property name="targetSchema" value="100000"/>
     </bean>
 
 </beans>
