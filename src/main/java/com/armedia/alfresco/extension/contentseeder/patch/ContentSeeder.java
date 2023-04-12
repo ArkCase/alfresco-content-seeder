@@ -18,7 +18,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.BiConsumer;
 
 import org.alfresco.model.ContentModel;
 import org.alfresco.module.org_alfresco_module_rm.fileplan.FilePlanService;
@@ -27,8 +26,6 @@ import org.alfresco.repo.security.authentication.AuthenticationUtil;
 import org.alfresco.service.cmr.model.FileExistsException;
 import org.alfresco.service.cmr.model.FileFolderService;
 import org.alfresco.service.cmr.repository.NodeRef;
-import org.alfresco.service.cmr.repository.NodeService;
-import org.alfresco.service.cmr.repository.StoreRef;
 import org.alfresco.service.cmr.site.SiteInfo;
 import org.alfresco.service.cmr.site.SiteService;
 import org.alfresco.service.namespace.NamespaceService;
@@ -59,6 +56,11 @@ public class ContentSeeder extends AbstractPatch {
 		private BadSeedFormatException(Object result) {
 			this.result = result;
 		}
+	}
+
+	@FunctionalInterface
+	private static interface SiteCreator {
+		SiteInfo create(SiteData data) throws Exception;
 	}
 
 	private static final String ENVVAR = "ARMEDIA_SEED_CONTENT";
@@ -103,76 +105,8 @@ public class ContentSeeder extends AbstractPatch {
 		.withZone(ZoneId.of("UTC")) //
 	;
 
-	protected Map<QName, Serializable> createCategoryMetadata(String categoryName) {
-		Map<QName, Serializable> md = new HashMap<>();
-		md.put(QName.createQName("cm:description", this.namespaceService), "");
-		md.put(QName.createQName("cm:name", this.namespaceService), categoryName);
-		md.put(QName.createQName("cm:title", this.namespaceService), categoryName);
-		md.put(QName.createQName("rma:identifier", this.namespaceService),
-			ContentSeeder.RMA_DATE_FORMAT.format(Instant.now()));
-		md.put(QName.createQName("rma:reviewPeriod", this.namespaceService), "none|0");
-		md.put(QName.createQName("rma:vitalRecordIndicator", this.namespaceService), "false");
-		return md;
-	}
-
-	public SiteInfo create(SiteData data) throws Exception {
-
-		SiteInfo site = this.siteService.getSite(data.name);
-		if (site == null) {
-			this.log.info("Site [{}] does not exist - it will be created (rm={})", data.name, data.rm);
-
-			if (!data.rm) {
-				final StoreRef storeRef = StoreRef.STORE_REF_WORKSPACE_SPACESSTORE;
-				if (!this.nodeService.exists(storeRef)) {
-					this.nodeService.createStore(storeRef.getProtocol(), storeRef.getIdentifier());
-					if (this.log.isDebugEnabled()) {
-						this.log.debug("Created store: {}", storeRef);
-					}
-				}
-			}
-
-			site = this.siteService.createSite(data.preset, data.name, data.title, data.description, data.visibility,
-				data.type);
-		} else {
-			this.log.info("Site [{}] already exists, will use the existing site (nodeRef={})", data.name,
-				site.getNodeRef());
-		}
-
-		AuthenticationUtil.setRunAsUser(AuthenticationUtil.getSystemUserName());
-
-		NodeRef rootNode = this.siteService.getContainer(site.getShortName(), SiteService.DOCUMENT_LIBRARY);
-		if (rootNode == null) {
-			rootNode = this.siteService.createContainer(site.getShortName(), SiteService.DOCUMENT_LIBRARY, null, null);
-		}
-		if (data.rm) {
-			rootNode = this.filePlanService.createRecordCategory(rootNode, data.root,
-				createCategoryMetadata(data.root));
-		}
-
-		final BiConsumer<NodeRef, String> folderCreator = (data.rm //
-			? this.filePlanService::createRecordCategory //
-			: (r, n) -> this.fileFolderService.create(r, n, ContentModel.TYPE_FOLDER) //
-		);
-
-		// Create the folders/categories within rootNode
-		for (String name : data.contents.keySet()) {
-			// For now, we ignore the object description. We can do fancier stuff later on ...
-			// Object o = this.contents.get(name);
-			try {
-				folderCreator.accept(rootNode, name);
-			} catch (FileExistsException e) {
-				// Ignore ... not a problem
-			}
-		}
-
-		return site;
-	}
-
 	@Autowired(required = true)
 	private SiteService siteService;
-
-	@Autowired(required = true)
-	private NodeService nodeService;
 
 	@Autowired(required = true)
 	private FileFolderService fileFolderService;
@@ -234,57 +168,123 @@ public class ContentSeeder extends AbstractPatch {
 		return seedData;
 	}
 
-	// TODO: figure out how to disable this for unit tests, b/c AuthenticationUtil won't
-	// be initialized and thus will break everything
 	protected <T> T runAsAdministrator(CheckedRunnable<T> task) throws Exception {
-		AuthenticationUtil.pushAuthentication();
-		try {
-			AuthenticationUtil.setFullyAuthenticatedUser(AuthenticationUtil.getAdminUserName());
-			return task.run();
-		} finally {
-			AuthenticationUtil.popAuthentication();
-		}
+		return this.authenticationWrapper.runAsAdministrator(task);
 	}
 
-	protected Void applyInternalImpl() throws Exception {
-		final String contentSource = StringSubstitutor.replaceSystemProperties(ContentSeeder.getSeedContentSource());
-		try {
-			SeedData seedData = loadSeedContent(contentSource);
-			this.log.info("Loaded the seeding data:{}{}", System.lineSeparator(), new Yaml().dump(seedData));
+	protected Map<QName, Serializable> createCategoryMetadata(String categoryName) {
+		Map<QName, Serializable> md = new HashMap<>();
+		md.put(QName.createQName("cm:description", this.namespaceService), "");
+		md.put(QName.createQName("cm:name", this.namespaceService), categoryName);
+		md.put(QName.createQName("cm:title", this.namespaceService), categoryName);
+		md.put(QName.createQName("rma:identifier", this.namespaceService),
+			ContentSeeder.RMA_DATE_FORMAT.format(Instant.now()));
+		md.put(QName.createQName("rma:reviewPeriod", this.namespaceService), "none|0");
+		md.put(QName.createQName("rma:vitalRecordIndicator", this.namespaceService), "false");
+		return md;
+	}
 
-			final SeedData.RmInfo rmInfo = seedData.getRecordsManagement();
-			final String rmSite = rmInfo.getSite();
+	public SiteInfo createContentSite(SiteData data) throws Exception {
+		SiteInfo site = this.siteService.getSite(data.name);
+		if (site == null) {
+			this.log.info("Site [{}] does not exist - it will be created (rm={})", data.name, data.rm);
 
-			final Map<String, SeedData.SiteDef> sites = seedData.getSites();
-			for (String siteName : sites.keySet()) {
-				final SeedData.SiteDef siteDef = sites.get(siteName);
-				final boolean rm = StringUtils.equals(rmSite, siteName);
-
-				// If RM is disabled, and this is the RM site, we skip it
-				if (rm && !rmInfo.isEnabled()) {
-					continue;
-				}
-
-				SiteData siteData = new SiteData(siteName, siteDef, StringUtils.equals(rmSite, siteName),
-					this.namespaceService);
-				this.log.info("Seeding the site information for [{}] (rm={})", siteData.name, siteData.rm);
-				SiteInfo siteInfo = create(siteData);
-				if (this.log.isDebugEnabled()) {
-					this.log.debug("Successfully seeded the site information for [{}] (nodeRef={})",
-						siteInfo.getShortName(), siteInfo.getNodeRef());
-				}
-			}
-			return null;
-		} catch (Exception e) {
-			throw new Exception(String.format("Failed to seed the initial content: %s", e.getMessage()), e);
+			site = runAsAdministrator(() -> this.siteService.createSite(data.preset, data.name, data.title,
+				data.description, data.visibility, data.type));
+		} else {
+			this.log.info("Site [{}] already exists, will use the existing site (nodeRef={})", data.name,
+				site.getNodeRef());
 		}
+
+		final String siteName = site.getShortName();
+		NodeRef rootNode = this.siteService.getContainer(siteName, SiteService.DOCUMENT_LIBRARY);
+		if (rootNode == null) {
+			rootNode = this.siteService.createContainer(siteName, SiteService.DOCUMENT_LIBRARY, null, null);
+		}
+
+		// Create the folders/categories within rootNode
+		for (String name : data.contents.keySet()) {
+			// For now, we ignore the object description. We can do fancier stuff later on ...
+			// Object o = this.contents.get(name);
+			try {
+				this.fileFolderService.create(rootNode, name, ContentModel.TYPE_FOLDER);
+			} catch (FileExistsException e) {
+				// Ignore ... not a problem
+			}
+		}
+		return site;
+	}
+
+	public SiteInfo createRMSite(SiteData data) throws Exception {
+		SiteInfo site = this.siteService.getSite(data.name);
+		if (site == null) {
+			this.log.info("Site [{}] does not exist - it will be created (rm={})", data.name, data.rm);
+
+			site = runAsAdministrator(() -> this.siteService.createSite(data.preset, data.name, data.title,
+				data.description, data.visibility, data.type));
+		} else {
+			this.log.info("Site [{}] already exists, will use the existing site (nodeRef={})", data.name,
+				site.getNodeRef());
+		}
+
+		final String siteName = site.getShortName();
+		NodeRef rootNode = this.siteService.getContainer(siteName, SiteService.DOCUMENT_LIBRARY);
+		rootNode = this.filePlanService.createRecordCategory(rootNode, data.root, createCategoryMetadata(data.root));
+
+		// Create the folders/categories within rootNode
+		for (String name : data.contents.keySet()) {
+			// For now, we ignore the object description. We can do fancier stuff later on ...
+			// Object o = this.contents.get(name);
+			try {
+				this.filePlanService.createRecordCategory(rootNode, name);
+			} catch (FileExistsException e) {
+				// Ignore ... not a problem
+			}
+		}
+		return site;
 	}
 
 	@Override
 	protected String applyInternal() throws Exception {
 		this.log.info("Starting execution of patch: {}", I18NUtil.getMessage(ContentSeeder.PATCH_ID));
 		try {
-			this.authenticationWrapper.runAsAdministrator(this::applyInternalImpl);
+			final String contentSource = StringSubstitutor
+				.replaceSystemProperties(ContentSeeder.getSeedContentSource());
+			try {
+				SeedData seedData = loadSeedContent(contentSource);
+				this.log.info("Loaded the seeding data:{}{}", System.lineSeparator(), new Yaml().dump(seedData));
+
+				final SeedData.RmInfo rmInfo = seedData.getRecordsManagement();
+				final String rmSite = rmInfo.getSite();
+
+				final Map<String, SeedData.SiteDef> sites = seedData.getSites();
+				for (String siteName : sites.keySet()) {
+					final SeedData.SiteDef siteDef = sites.get(siteName);
+					final boolean rm = StringUtils.equals(rmSite, siteName);
+
+					// If RM is disabled, and this is the RM site, we skip it
+					if (rm && !rmInfo.isEnabled()) {
+						continue;
+					}
+
+					// Don't do RM for now ... until we figure it out
+					if (rm) {
+						continue;
+					}
+
+					final SiteCreator siteCreator = (rm ? this::createRMSite : this::createContentSite);
+					SiteData siteData = new SiteData(siteName, siteDef, StringUtils.equals(rmSite, siteName),
+						this.namespaceService);
+					this.log.info("Seeding the site information for [{}] (rm={})", siteData.name, siteData.rm);
+					SiteInfo siteInfo = siteCreator.create(siteData);
+					if (this.log.isDebugEnabled()) {
+						this.log.debug("Successfully seeded the site information for [{}] (nodeRef={})",
+							siteInfo.getShortName(), siteInfo.getNodeRef());
+					}
+				}
+			} catch (Exception e) {
+				throw new Exception(String.format("Failed to seed the initial content: %s", e.getMessage()), e);
+			}
 			return I18NUtil.getMessage(ContentSeeder.MSG_SUCCESS);
 		} catch (Exception e) {
 			throw new Exception(String.format("Failed to seed the initial content: %s", e.getMessage()), e);
