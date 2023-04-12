@@ -27,6 +27,8 @@ import org.alfresco.repo.security.authentication.AuthenticationUtil;
 import org.alfresco.service.cmr.model.FileExistsException;
 import org.alfresco.service.cmr.model.FileFolderService;
 import org.alfresco.service.cmr.repository.NodeRef;
+import org.alfresco.service.cmr.repository.NodeService;
+import org.alfresco.service.cmr.repository.StoreRef;
 import org.alfresco.service.cmr.site.SiteInfo;
 import org.alfresco.service.cmr.site.SiteService;
 import org.alfresco.service.namespace.NamespaceService;
@@ -118,12 +120,25 @@ public class ContentSeeder extends AbstractPatch {
 		SiteInfo site = this.siteService.getSite(data.name);
 		if (site == null) {
 			this.log.info("Site [{}] does not exist - it will be created (rm={})", data.name, data.rm);
+
+			if (!data.rm) {
+				final StoreRef storeRef = StoreRef.STORE_REF_WORKSPACE_SPACESSTORE;
+				if (!this.nodeService.exists(storeRef)) {
+					this.nodeService.createStore(storeRef.getProtocol(), storeRef.getIdentifier());
+					if (this.log.isDebugEnabled()) {
+						this.log.debug("Created store: {}", storeRef);
+					}
+				}
+			}
+
 			site = this.siteService.createSite(data.preset, data.name, data.title, data.description, data.visibility,
 				data.type);
 		} else {
 			this.log.info("Site [{}] already exists, will use the existing site (nodeRef={})", data.name,
 				site.getNodeRef());
 		}
+
+		AuthenticationUtil.setRunAsUser(AuthenticationUtil.getSystemUserName());
 
 		NodeRef rootNode = this.siteService.getContainer(site.getShortName(), SiteService.DOCUMENT_LIBRARY);
 		if (rootNode == null) {
@@ -155,6 +170,9 @@ public class ContentSeeder extends AbstractPatch {
 
 	@Autowired(required = true)
 	private SiteService siteService;
+
+	@Autowired(required = true)
+	private NodeService nodeService;
 
 	@Autowired(required = true)
 	private FileFolderService fileFolderService;

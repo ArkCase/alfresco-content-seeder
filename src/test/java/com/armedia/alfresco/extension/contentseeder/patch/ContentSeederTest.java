@@ -9,6 +9,7 @@ import org.alfresco.module.org_alfresco_module_rm.fileplan.FilePlanService;
 import org.alfresco.service.cmr.model.FileFolderService;
 import org.alfresco.service.cmr.model.FileInfo;
 import org.alfresco.service.cmr.repository.NodeRef;
+import org.alfresco.service.cmr.repository.NodeService;
 import org.alfresco.service.cmr.repository.StoreRef;
 import org.alfresco.service.cmr.site.SiteInfo;
 import org.alfresco.service.cmr.site.SiteService;
@@ -52,6 +53,7 @@ class ContentSeederTest {
 		FilePlanService fps = ContentSeederTest.CONTEXT.getBean(FilePlanService.class);
 		FileFolderService ffs = ContentSeederTest.CONTEXT.getBean(FileFolderService.class);
 		SiteService ss = ContentSeederTest.CONTEXT.getBean(SiteService.class);
+		NodeService ns = ContentSeederTest.CONTEXT.getBean(NodeService.class);
 		NamespaceService nss = ContentSeederTest.CONTEXT.getBean(NamespaceService.class);
 		SiteInfo si = EasyMock.createStrictMock(SiteInfo.class);
 		FileInfo fi = EasyMock.createStrictMock(FileInfo.class);
@@ -63,7 +65,7 @@ class ContentSeederTest {
 		final String rmSite = rmInfo.getSite();
 
 		final Map<String, SeedData.SiteDef> sites = seedData.getSites();
-		EasyMock.reset(fps, ffs, ss, si, fi);
+		EasyMock.reset(fps, ffs, ss, ns, si, fi);
 		for (String siteName : sites.keySet()) {
 			final SeedData.SiteDef siteDef = sites.get(siteName);
 			final boolean rm = StringUtils.equals(rmSite, siteName);
@@ -76,6 +78,12 @@ class ContentSeederTest {
 			SiteData siteData = new SiteData(siteName, siteDef, StringUtils.equals(rmSite, siteName), nss);
 
 			EasyMock.expect(ss.getSite(siteData.name)).andReturn(null).once();
+			if (!siteData.rm) {
+				StoreRef storeRef = StoreRef.STORE_REF_WORKSPACE_SPACESSTORE;
+				EasyMock.expect(ns.exists(storeRef)).andReturn(false).once();
+				EasyMock.expect(ns.createStore(storeRef.getProtocol(), storeRef.getIdentifier())).andReturn(null)
+					.once();
+			}
 			EasyMock.expect(ss.createSite(siteData.preset, siteData.name, siteData.title, siteData.description,
 				siteData.visibility, siteData.type)).andReturn(si).once();
 			EasyMock.expect(si.getShortName()).andReturn(siteData.name).once();
@@ -102,9 +110,9 @@ class ContentSeederTest {
 				}
 			}
 		}
-		EasyMock.replay(fps, ffs, ss, si, fi);
+		EasyMock.replay(fps, ffs, ss, ns, si, fi);
 		patch.applyInternal();
-		EasyMock.verify(fps, ffs, ss, si, fi);
+		EasyMock.verify(fps, ffs, ss, ns, si, fi);
 	}
 
 	@AfterAll
