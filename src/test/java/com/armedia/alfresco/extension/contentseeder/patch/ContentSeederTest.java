@@ -77,6 +77,11 @@ class ContentSeederTest {
 
 			SiteData siteData = new SiteData(siteName, siteDef, StringUtils.equals(rmSite, siteName), nss);
 
+			// For now, we skip the RM sites ... this functionality is disabled for now
+			if (siteData.rm) {
+				continue;
+			}
+
 			EasyMock.expect(ss.getSite(siteData.name)).andReturn(null).once();
 			EasyMock.expect(ss.createSite(siteData.preset, siteData.name, siteData.title, siteData.description,
 				siteData.visibility, siteData.type)).andReturn(si).once();

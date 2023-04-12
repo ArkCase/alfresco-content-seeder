@@ -30,6 +30,7 @@ import org.alfresco.service.cmr.site.SiteInfo;
 import org.alfresco.service.cmr.site.SiteService;
 import org.alfresco.service.namespace.NamespaceService;
 import org.alfresco.service.namespace.QName;
+import org.alfresco.service.transaction.TransactionService;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringSubstitutor;
 import org.slf4j.Logger;
@@ -116,6 +117,9 @@ public class ContentSeeder extends AbstractPatch {
 
 	@Autowired(required = true)
 	private FilePlanService filePlanService;
+
+	@Autowired(required = true)
+	private TransactionService tx;
 
 	private AuthenticationWrapper authenticationWrapper = new DefaultAuthenticationWrapper();
 
@@ -216,34 +220,40 @@ public class ContentSeeder extends AbstractPatch {
 	}
 
 	public SiteInfo createRMSite(SiteData data) throws Exception {
-		// Disable this for now ...
+		// Disable this code for now ...
 		if (data.rm) { return null; }
-		SiteInfo site = this.siteService.getSite(data.name);
-		if (site == null) {
-			this.log.info("Site [{}] does not exist - it will be created (rm={})", data.name, data.rm);
+		return runAsAdministrator(() -> {
+			return this.tx.getRetryingTransactionHelper().doInTransaction(() -> {
 
-			site = runAsAdministrator(() -> this.siteService.createSite(data.preset, data.name, data.title,
-				data.description, data.visibility, data.type));
-		} else {
-			this.log.info("Site [{}] already exists, will use the existing site (nodeRef={})", data.name,
-				site.getNodeRef());
-		}
+				SiteInfo site = this.siteService.getSite(data.name);
+				if (site == null) {
+					this.log.info("Site [{}] does not exist - it will be created (rm={})", data.name, data.rm);
 
-		final String siteName = site.getShortName();
-		NodeRef rootNode = this.siteService.getContainer(siteName, SiteService.DOCUMENT_LIBRARY);
-		rootNode = this.filePlanService.createRecordCategory(rootNode, data.root, createCategoryMetadata(data.root));
+					site = runAsAdministrator(() -> this.siteService.createSite(data.preset, data.name, data.title,
+						data.description, data.visibility, data.type));
+				} else {
+					this.log.info("Site [{}] already exists, will use the existing site (nodeRef={})", data.name,
+						site.getNodeRef());
+				}
 
-		// Create the folders/categories within rootNode
-		for (String name : data.contents.keySet()) {
-			// For now, we ignore the object description. We can do fancier stuff later on ...
-			// Object o = this.contents.get(name);
-			try {
-				this.filePlanService.createRecordCategory(rootNode, name);
-			} catch (FileExistsException e) {
-				// Ignore ... not a problem
-			}
-		}
-		return site;
+				final String siteName = site.getShortName();
+				NodeRef rootNode = this.siteService.getContainer(siteName, SiteService.DOCUMENT_LIBRARY);
+				rootNode = this.filePlanService.createRecordCategory(rootNode, data.root,
+					createCategoryMetadata(data.root));
+
+				// Create the folders/categories within rootNode
+				for (String name : data.contents.keySet()) {
+					// For now, we ignore the object description. We can do fancier stuff later on
+					// Object o = this.contents.get(name);
+					try {
+						this.filePlanService.createRecordCategory(rootNode, name);
+					} catch (FileExistsException e) {
+						// Ignore ... not a problem
+					}
+				}
+				return site;
+			}, false, true);
+		});
 	}
 
 	@Override
@@ -275,8 +285,12 @@ public class ContentSeeder extends AbstractPatch {
 					this.log.info("Seeding the site information for [{}] (rm={})", siteData.name, siteData.rm);
 					SiteInfo siteInfo = siteCreator.create(siteData);
 					if (this.log.isDebugEnabled()) {
-						this.log.debug("Successfully seeded the site information for [{}] (nodeRef={})",
-							siteInfo.getShortName(), siteInfo.getNodeRef());
+						if (siteInfo != null) {
+							this.log.debug("Successfully seeded the site information for [{}] (nodeRef={})",
+								siteInfo.getShortName(), siteInfo.getNodeRef());
+						} else {
+							this.log.debug("Skipped creation of the site [{}]", siteName);
+						}
 					}
 				}
 			} catch (Exception e) {
